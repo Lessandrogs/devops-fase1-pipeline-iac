@@ -34,7 +34,7 @@ jobs:
       - name: Install deps
         working-directory: app
         run: npm install
-      - name: Run tests
+      - name: Run tests (with JUnit)
         working-directory: app
         env:
           JEST_JUNIT_OUTPUT: app/junit.xml
