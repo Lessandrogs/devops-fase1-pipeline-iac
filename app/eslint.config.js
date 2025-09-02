@@ -6,10 +6,11 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
+      // Use booleanos no flat config:
       globals: {
-        console: "readonly",
-        require: "readonly",
-        module: "readonly"
+        console: true,
+        require: true,
+        module: true
       }
     },
     rules: {
@@ -22,13 +23,13 @@ export default [
     files: ["**/__tests__/**/*.js", "**/*.test.js"],
     languageOptions: {
       globals: {
-        test: "readonly",
-        expect: "readonly",
-        describe: "readonly",
-        beforeAll: "readonly",
-        beforeEach: "readonly",
-        afterAll: "readonly",
-        afterEach: "readonly"
+        test: true,
+        expect: true,
+        describe: true,
+        beforeAll: true,
+        beforeEach: true,
+        afterAll: true,
+        afterEach: true
       }
     }
   }
