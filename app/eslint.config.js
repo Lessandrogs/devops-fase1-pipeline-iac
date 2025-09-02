@@ -6,7 +6,7 @@ export default [
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
-      // Use booleanos no flat config:
+      // Booleans (flat config)
       globals: {
         console: true,
         require: true,
