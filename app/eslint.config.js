@@ -1,12 +1,12 @@
-export default [
+module.exports = [
   // Regras padrão (CommonJS + Node)
   {
     files: ["**/*.js"],
-    ignores: ["node_modules/**", "dist/**"],
+    ignores: ["node_modules/**", "dist/**", "eslint.config.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
-      // Booleans (flat config)
+      // booleans no flat config
       globals: {
         console: true,
         require: true,

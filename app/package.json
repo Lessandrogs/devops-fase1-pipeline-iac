@@ -2,7 +2,7 @@
   "name": "demo-ci-iac",
   "version": "1.0.0",
   "scripts": {
-    "lint": "eslint . --ext .js --max-warnings=0",
+    "lint": "eslint src __tests__ --ext .js --max-warnings=0",
     "test": "jest --coverage",
     "build": "node -e \"require('fs').mkdirSync('dist',{recursive:true}); require('fs').writeFileSync('dist/index.html','ok');\"",
     "start": "node src/index.js"

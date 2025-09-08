@@ -1,5 +1,4 @@
 /* eslint-env node, jest */
-
 const { sum } = require("../src/index.js");
 
 test("sum adds numbers", () => {
