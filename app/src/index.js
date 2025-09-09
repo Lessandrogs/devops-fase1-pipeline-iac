@@ -16,7 +16,6 @@ function startServer() {
   return server;
 }
 
-// Inicia servidor só quando for chamado diretamente (npm start)
 if (require.main === module) {
   startServer();
 }

@@ -1,16 +1,15 @@
 module.exports = [
-  // Regras padrão (CommonJS + Node)
   {
     files: ["**/*.js"],
     ignores: ["node_modules/**", "dist/**", "eslint.config.js"],
     languageOptions: {
       ecmaVersion: 2022,
       sourceType: "commonjs",
-      // booleans no flat config
       globals: {
         console: true,
         require: true,
-        module: true
+        module: true,
+        process: true   // <<<<<< AQUI
       }
     },
     rules: {
@@ -18,7 +17,6 @@ module.exports = [
       "no-undef": "error"
     }
   },
-  // Regras para testes (habilita globals do Jest)
   {
     files: ["**/__tests__/**/*.js", "**/*.test.js"],
     languageOptions: {
