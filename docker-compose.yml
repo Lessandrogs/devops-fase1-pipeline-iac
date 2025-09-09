@@ -1,0 +1,9 @@
+services:
+  app:
+    image: ghcr.io/${GITHUB_REPOSITORY_OWNER:-lessandrogs}/devops-fase1-pipeline-iac:latest
+    container_name: fase2-app
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+    restart: unless-stopped

@@ -1,0 +1,121 @@
+name: CI-CD
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/devops-fase1-pipeline-iac
+  NODE_VERSION: "20"
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install deps
+        working-directory: app
+        run: npm install
+      - name: Lint
+        working-directory: app
+        run: npm run lint || echo "lint falhou (não bloqueia CD nesta fase)"
+
+  test:
+    runs-on: ubuntu-latest
+    needs: lint
+    strategy:
+      matrix:
+        node: [18, 20]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+      - name: Install deps
+        working-directory: app
+        run: npm install
+      - name: Test (com JUnit)
+        working-directory: app
+        env:
+          JEST_JUNIT_OUTPUT: app/junit.xml
+        run: npm test -- --ci --reporters=default --reporters=jest-junit
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports-node-${{ matrix.node }}
+          path: app/junit.xml
+
+  build_app:
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install deps
+        working-directory: app
+        run: npm install
+      - name: Build
+        working-directory: app
+        run: npm run build
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-build
+          path: app/dist
+
+  docker_publish:
+    runs-on: ubuntu-latest
+    needs: build_app
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Definir tags
+        id: meta
+        run: |
+          SHA_SHORT=${GITHUB_SHA::7}
+          echo "tags=${{ env.IMAGE_NAME }}:latest,${{ env.IMAGE_NAME }}:${SHA_SHORT}" >> $GITHUB_OUTPUT
+
+      - name: Build & Push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+
+  deploy_demo:
+    runs-on: ubuntu-latest
+    needs: docker_publish
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Puxar imagem e subir
+        run: |
+          docker pull ${{ env.IMAGE_NAME }}:latest
+          docker compose up -d
+      - name: Listar containers
+        run: docker ps -a
