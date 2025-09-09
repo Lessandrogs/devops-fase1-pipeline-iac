@@ -2,8 +2,16 @@ name: CI/CD
 
 on:
   push:
-    branches:
-      - main
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NODE_VERSION: "20"
 
 jobs:
   lint:
@@ -12,9 +20,13 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run lint
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install deps
+        working-directory: app
+        run: npm install
+      - name: Lint
+        working-directory: app
+        run: npm run lint
 
   test:
     runs-on: ubuntu-latest
@@ -26,24 +38,46 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node }}
-      - run: npm ci
-      - run: npm test
+      - name: Install deps
+        working-directory: app
+        run: npm install
+      - name: Test
+        working-directory: app
+        run: npm test
 
   build_app:
     runs-on: ubuntu-latest
+    needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - run: npm ci
-      - run: npm run build
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install deps
+        working-directory: app
+        run: npm install
+      - name: Build
+        working-directory: app
+        run: npm run build
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-dist
+          path: app/dist
 
   docker_publish:
     runs-on: ubuntu-latest
-    needs: [lint, test, build_app]
+    needs: build_app
     steps:
       - uses: actions/checkout@v4
+
+      # garante owner em lowercase para o GHCR
+      - name: Set image name
+        id: names
+        shell: bash
+        run: |
+          OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "image=ghcr.io/${OWNER_LC}/devops-fase1-pipeline-iac" >> "$GITHUB_OUTPUT"
 
       - name: Login no GHCR (via PAT)
         uses: docker/login-action@v3
@@ -56,15 +90,46 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: ./Dockerfile
           push: true
-          tags: ghcr.io/lessandrogs/devops-fase1-pipeline-iac:latest
+          tags: |
+            ${{ steps.names.outputs.image }}:latest
+            ${{ steps.names.outputs.image }}:${{ github.sha }}
 
   deploy_demo:
     runs-on: ubuntu-latest
     needs: docker_publish
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy container demo
+
+      - name: Resolve image
+        id: names
+        shell: bash
         run: |
-          echo "Simulando deploy..."
-          docker run -d -p 3000:3000 ghcr.io/lessandrogs/devops-fase1-pipeline-iac:latest
+          OWNER_LC="$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')"
+          echo "image=ghcr.io/${OWNER_LC}/devops-fase1-pipeline-iac:latest" >> "$GITHUB_OUTPUT"
+
+      - name: Login no GHCR (via PAT)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_PAT }}
+
+      - name: Subir container de demonstração (compose inline)
+        run: |
+          docker pull "${{ steps.names.outputs.image }}"
+          cat > docker-compose.yml <<'EOF'
+          services:
+            app:
+              image: ${{ steps.names.outputs.image }}
+              container_name: fase2-app
+              environment:
+                - PORT=3000
+              ports:
+                - "3000:3000"
+              restart: unless-stopped
+          EOF
+          docker compose up -d
+      - name: Ver containers
+        run: docker ps -a
